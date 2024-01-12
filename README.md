@@ -1,4 +1,4 @@
-# Motion Planning Hackathon
+# Motion Planning Hackathon | Team 4
 
 This repository contains a rough skeleton of a ROS package that you may use as an initial guess during the hackathon.
 

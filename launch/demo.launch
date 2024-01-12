@@ -31,4 +31,7 @@
     - control node for this demo
     - run more EKFs for dynamic objects, etc.
   -->
+
+  <node pkg="hackathon" type="run.py" name="run" output="screen">
+  </node>
 </launch>
