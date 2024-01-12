@@ -1,0 +1,10 @@
+<launch>
+  <!-- Simulator -->
+  <include file="$(find jackal_gazebo)/launch/empty_world.launch"/>
+  <!-- Basic visualization -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find hackathon)/rviz/demo.rviz"/>
+  <!-- Our planned node -->
+  <!--
+  <node pkg="hackathon" type="run.py" name="run" output="screen"/>
+  -->
+</launch>
