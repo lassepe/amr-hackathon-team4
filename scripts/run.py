@@ -50,19 +50,22 @@ class JackalControl:
         self.latest_odom = GuardedVariable(None)
         self.latest_goal = GuardedVariable(None)
         self.current_control_action = JackalControl.update_action(
-            Twist(), default_control_action)
+            Twist(), default_control_action
+        )
 
         self.odometry_subscriber = rospy.Subscriber(
-            "/robot_ekf/odometry", Odometry, self.odometry_callback)
+            "/robot_ekf/odometry", Odometry, self.odometry_callback
+        )
 
         self.goal_subscriber = rospy.Subscriber(
-            "/move_base_simple/goal", PoseStamped, self.goal_callback)
+            "/move_base_simple/goal", PoseStamped, self.goal_callback
+        )
 
-        self.control_action_publisher = rospy.Publisher(
-            "/cmd_vel", Twist, queue_size=1)
+        self.control_action_publisher = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         self.dt = dt
         self.strategy_updater_thread = threading.Thread(
-            target=self.strategy_update_task)
+            target=self.strategy_update_task
+        )
         # TODO: could also warm-up the julia solver here
 
     def goal_callback(self, msg):
@@ -87,18 +90,17 @@ class JackalControl:
         Continuously compute the control action to be taken by the robot from the current
         state estimate.
         """
-        rate = rospy.Rate(1.0 / self.dt)
+        rate = rospy.Rate(2 / self.dt)
         while not rospy.is_shutdown():
+            odom = self.latest_odom.get()
             odom = self.latest_odom.get()
             goal = self.latest_goal.get()
             if odom and goal:
                 time_stamp = odom.header.stamp
                 new_strategy = self.compute_strategy(odom, goal)
-                self.latest_strategy.set({
-                    'index': 0,
-                    'time_stap': time_stamp,
-                    'controls': new_strategy['us']
-                })
+                self.latest_strategy.set(
+                    {"time_stamp": time_stamp, "controls": new_strategy["us"]}
+                )
             rate.sleep()
 
     def compute_strategy(self, odom, goal):
@@ -115,7 +117,13 @@ class JackalControl:
 
         # turn rate proportional to the angle error
         ego_z_angle = tf.transformations.euler_from_quaternion(
-            (odom.pose.pose.orientation.x, odom.pose.pose.orientation.y, odom.pose.pose.orientation.z, odom.pose.pose.orientation.w))[2]
+            (
+                odom.pose.pose.orientation.x,
+                odom.pose.pose.orientation.y,
+                odom.pose.pose.orientation.z,
+                odom.pose.pose.orientation.w,
+            )
+        )[2]
         turn_rate = compute_angle_error(relative_goal_angle, ego_z_angle)
         # acceleration proportional to the distance to the goal
         distance_to_goal = math.sqrt(goal_x**2 + goal_y**2)
@@ -123,12 +131,15 @@ class JackalControl:
         assert velocity_clipped >= 0.0
 
         return {
-            'us': [[velocity_clipped, turn_rate]]
+            "us": [
+                [velocity_clipped, turn_rate],
+            ]
         }
 
     def publish_control_action(self, control_action):
         self.current_control_action = JackalControl.update_action(
-            self.current_control_action, control_action)
+            self.current_control_action, control_action
+        )
         self.control_action_publisher.publish(self.current_control_action)
 
     def run(self):
@@ -138,24 +149,28 @@ class JackalControl:
         """
         self.strategy_updater_thread.start()
         rate = rospy.Rate(1.0 / self.dt)
+        strategy = None
+        horizon_index = 0
         while not rospy.is_shutdown():
-            strategy = self.latest_strategy.get()
+            latest_strategy = self.latest_strategy.get()
+            if latest_strategy is not strategy:
+                strategy = latest_strategy
+                horizon_index = 0
             if strategy is not None:
-                index = strategy['index']
-                controls = strategy['controls']
-                if index < len(controls):
-                    control_action = controls[index]
+                controls = strategy["controls"]
+                if horizon_index < len(controls):
+                    control_action = controls[horizon_index]
                     self.publish_control_action(control_action)
-                    strategy['index'] += 1
+                    horizon_index += 1
                 else:
                     rospy.loginfo("Strategy exhausted.")
                     self.publish_control_action(self.default_control_action)
             rate.sleep()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
-        rospy.init_node('jackal_control_node', anonymous=True)
+        rospy.init_node("jackal_control_node", anonymous=True)
         jackal_control = JackalControl()
         jackal_control.run()
     except rospy.ROSInterruptException:
