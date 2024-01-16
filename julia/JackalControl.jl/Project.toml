@@ -1,0 +1,10 @@
+name = "JackalControl"
+uuid = "a6cb9126-2246-4773-a3ce-852f867faa3f"
+authors = ["lassepe <lasse.peters@mailbox.org>"]
+version = "0.1.0"
+
+[deps]
+OrderedPreferences = "f28deaa9-7646-4bae-9ba6-b7789ef42b8a"
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+TrajectoryGamesBase = "ac1ac542-73eb-4349-ae1b-660ab3609574"
+TrajectoryGamesExamples = "ff3fa34c-8d8f-519c-b5bc-31760c52507a"
