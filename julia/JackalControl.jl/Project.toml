@@ -4,7 +4,9 @@ authors = ["lassepe <lasse.peters@mailbox.org>"]
 version = "0.1.0"
 
 [deps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 OrderedPreferences = "f28deaa9-7646-4bae-9ba6-b7789ef42b8a"
-PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
+Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 TrajectoryGamesBase = "ac1ac542-73eb-4349-ae1b-660ab3609574"
 TrajectoryGamesExamples = "ff3fa34c-8d8f-519c-b5bc-31760c52507a"
