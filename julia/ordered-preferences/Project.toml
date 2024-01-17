@@ -2,14 +2,11 @@ name = "OrderedPreferences"
 uuid = "f28deaa9-7646-4bae-9ba6-b7789ef42b8a"
 authors = ["leedh0124 <35527664+leedh0124@users.noreply.github.com>"]
 version = "0.1.0"
+manifest = "../Manifest.toml"
 
 [deps]
 BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
-GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PATHSolver = "f5f7c340-0bb3-5c69-969a-41884d311d1b"
 ParametricMCPs = "9b992ff8-05bb-4ea1-b9d2-5ef72d82f7ad"
-ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-TrajectoryGamesBase = "ac1ac542-73eb-4349-ae1b-660ab3609574"
-TrajectoryGamesExamples = "ff3fa34c-8d8f-519c-b5bc-31760c52507a"

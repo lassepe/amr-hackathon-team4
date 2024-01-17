@@ -2,6 +2,7 @@ name = "JackalControl"
 uuid = "a6cb9126-2246-4773-a3ce-852f867faa3f"
 authors = ["lassepe <lasse.peters@mailbox.org>"]
 version = "0.1.0"
+manifest = "../Manifest.toml"
 
 [deps]
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
