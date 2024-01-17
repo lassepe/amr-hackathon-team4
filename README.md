@@ -28,7 +28,14 @@ Finally, to run the Julia-based controller:
 
 - make sure you have a working [Julia 1.10 installation](https://github.com/JuliaLang/juliaup).
     - **TL:DR;** `curl -fsSL https://install.julialang.org | sh`
-- install the julia package dependencies: `julia --project="./julia/JackalControl.jl/" -e "using Pkg; Pkg.instantiate()"`
+
+## Quick Start: Our Code
+
+- run the ros interface to the robot `roslaunch hackathon demo.launch robot_name:=<robot_name>`
+- run a julia trajectory optimizer: `rosrun hackathon julia_server`.
+- run the motion controller: `rosrun hackathon motion_controller.py`
+
+Each process can be restarted independently since they just communicate via network.
 
 ## Quick Start: Generic
 
