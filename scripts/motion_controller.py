@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 
 import threading
@@ -17,6 +18,7 @@ class JackalControl:
         self.latest_strategy = utils.GuardedVariable(None)
         self.latest_state = utils.GuardedVariable(None)
         self.latest_goal = utils.GuardedVariable(None)
+        self.latest_obstacle = utils.GuardedVariable(None)
 
         self.odometry_subscriber = rospy.Subscriber(
             "/robot_ekf/odometry", Odometry, self.odometry_callback
@@ -26,12 +28,17 @@ class JackalControl:
             "/move_base_simple/goal", PoseStamped, self.goal_callback
         )
 
+        self.obstacle_subscriber = rospy.Subscriber(
+            "/obstacle_ekf/odometry", Odometry, self.obstacle_callback
+        )
+
         self.control_action_publisher = rospy.Publisher(
             "/cmd_vel", Twist, queue_size=1)
         self.dt = dt
         self.ros_communication_thread = threading.Thread(
             target=self.ros_communication_task
         )
+
 
     def goal_callback(self, msg):
         """
@@ -43,6 +50,10 @@ class JackalControl:
     def odometry_callback(self, msg):
         state = utils.vector_from_odom(msg)
         self.latest_state.set(state)
+
+    def obstacle_callback(self, msg):
+        obstacle = utils.vector_from_odom(msg)
+        self.latest_obstacle.set(obstacle)
 
     def strategy_update_task(self):
         """
@@ -56,7 +67,7 @@ class JackalControl:
         while not rospy.is_shutdown():
             state = self.latest_state.get()
             goal = self.latest_goal.get()
-            obstacle = [0.0, 0.0]  # TODO: set based on vicon readings, too
+            obstacle = self.latest_obstacle.get()
             if state and goal:
                 new_strategy = motion_controller.compute_strategy(
                     state, goal, obstacle)
