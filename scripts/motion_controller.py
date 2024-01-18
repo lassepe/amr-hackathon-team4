@@ -31,7 +31,8 @@ class JackalControl:
             "/vicon/obstacle1", PoseWithCovarianceStamped, self.obstacle_callback
         )
 
-        self.control_action_publisher = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
+        self.control_action_publisher = rospy.Publisher(
+            "/cmd_vel", Twist, queue_size=1)
         self.dt = dt
         self.ros_communication_thread = threading.Thread(
             target=self.ros_communication_task
@@ -42,7 +43,8 @@ class JackalControl:
         Update the latest goal.
         """
         # TODO: also extract orientation
-        goal_orientation = utils.get_z_angle_from_quaternion(msg.pose.orientation)
+        goal_orientation = utils.get_z_angle_from_quaternion(
+            msg.pose.orientation)
         goal = [msg.pose.position.x, msg.pose.position.y, goal_orientation]
         self.latest_goal.set(goal)
 
@@ -69,13 +71,17 @@ class JackalControl:
 
         motion_controller = JuliaTrajectoryOptimizer()
 
-        rate = rospy.Rate(1 / self.dt)
+        rate = rospy.Rate(2 / self.dt)
         while not rospy.is_shutdown():
             state = self.latest_state.get()
             goal = self.latest_goal.get()
             obstacle = self.latest_obstacle.get()
             if state and goal and obstacle:
-                new_strategy = motion_controller.compute_strategy(state, goal, obstacle)
+                # start_time = rospy.get_time()
+                new_strategy = motion_controller.compute_strategy(
+                    state, goal, obstacle)
+                # end_time = rospy.get_time()
+                # print("Time taken: {}".format(end_time - start_time))
                 self.latest_strategy.set(new_strategy)
             rate.sleep()
 

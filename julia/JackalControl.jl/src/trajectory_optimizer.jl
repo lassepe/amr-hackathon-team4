@@ -1,8 +1,16 @@
 function setup_trajectory_optimizer(;
     warmup = true,
     dynamics = UnicycleDynamics(; control_bounds = (; lb = [-4.0, -1.4], ub = [4.0, 1.4])),
-    planning_horizon = 10,
+    planning_horizon = 15,
 )
+    minimum_px = -4.0
+    maximum_px = 4.0
+    minimum_py = -2.5
+    maximum_py = 2.5
+    maximum_lateral_acceleration = 0.5
+
+    maximum_velocity = 1.0
+    minimum_obstacle_distance = 1.0
     goal_dimension = 3
     obstacle_dimension = 3
     println("setting up...")
@@ -27,7 +35,7 @@ function setup_trajectory_optimizer(;
         (; xs, us) = unflatten_trajectory(z, state_dimension, control_dimension)
         (; goal) = unflatten_parameters(θ)
 
-        sum(sum(u .^ 2) for u in us)
+        sum(u[1] .^ 2 + u[2] .^ 2 for u in us)
     end
 
     equality_constraints = function (z, θ)
@@ -51,6 +59,16 @@ function setup_trajectory_optimizer(;
     end
 
     prioritized_inequality_constraints = [
+        function (z, θ)
+            (; xs, us) = unflatten_trajectory(z, state_dimension, control_dimension)
+            mapreduce(vcat, 2:length(xs)) do k
+                (; obstacle) = unflatten_parameters(θ)
+                px, py = xs[k]
+                distance_to_obstacle_squared = (px - obstacle[1])^2 + (py - obstacle[2])^2
+                [distance_to_obstacle_squared - minimum_obstacle_distance^2]
+            end
+        end,
+
         # limit acceleration and don't go too fast, stay within the playing field
         function (z, θ)
             (; xs, us) = unflatten_trajectory(z, state_dimension, control_dimension)
@@ -59,24 +77,35 @@ function setup_trajectory_optimizer(;
                 a, ω = us[k]
 
                 lateral_acceleration = v * ω
-                lateral_accelerartion_constraint =
-                    [lateral_acceleration + 1.0, -lateral_acceleration + 1.0]
+                lateral_accelerartion_constraint = [
+                    lateral_acceleration + maximum_lateral_acceleration,
+                    -lateral_acceleration + maximum_lateral_acceleration,
+                ]
 
-                velocity_constraint = vcat(v + 2.0, -v + 2.0)
-                position_constraints = vcat(px + 2.0, -px + 2.0, py + 2.0, -py + 2.0)
+                velocity_constraint = vcat(v + maximum_velocity, -v + maximum_velocity)
+                position_constraints =
+                    vcat(px - minimum_px, maximum_px - px, py - minimum_py, maximum_py - py)
                 vcat(lateral_accelerartion_constraint, velocity_constraint, position_constraints)
             end
         end,
 
-        # reach the goal
+        # reach the goal position
         function (z, θ)
-            (; xs, us) = unflatten_trajectory(z, state_dimension, control_dimension)
+            (; xs) = unflatten_trajectory(z, state_dimension, control_dimension)
             (; goal) = unflatten_parameters(θ)
             goal_position_deviation = xs[end][1:2] .- goal[1:2]
-            goal_orientation_deviation = xs[end][4] - goal[3]
             [
                 goal_position_deviation .+ 0.1
                 -goal_position_deviation .+ 0.1
+            ]
+        end,
+
+        # reach goal orientation
+        function (z, θ)
+            (; xs) = unflatten_trajectory(z, state_dimension, control_dimension)
+            (; goal) = unflatten_parameters(θ)
+            goal_orientation_deviation = xs[end][4] - goal[3]
+            [
                 goal_orientation_deviation .+ 0.01
                 -goal_orientation_deviation .+ 0.01
             ]
