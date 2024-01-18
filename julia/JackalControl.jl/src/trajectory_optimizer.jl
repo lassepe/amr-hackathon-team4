@@ -4,7 +4,7 @@ function setup_trajectory_optimizer(;
     planning_horizon = 10,
 )
     goal_dimension = 3
-    obstacle_dimension = 2
+    obstacle_dimension = 3
     println("setting up...")
     state_dimension = state_dim(dynamics)
     control_dimension = control_dim(dynamics)

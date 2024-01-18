@@ -13,7 +13,6 @@ function serve(; trajectory_optimizer = setup_trajectory_optimizer(), port = 808
         Sockets.quickack(ws.io.io, true)
         for msg in ws
             request = JSON3.read(msg)
-            # TODO: maybe just forward the raw object?
             result = trajectory_optimizer(request.state, request.goal, request.obstacle)
             WebSockets.send(ws, JSON3.write(result))
         end

@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 
 import threading
@@ -8,7 +7,7 @@ import utils
 
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 
 from julia_trajectory_optimizer import JuliaTrajectoryOptimizer
 
@@ -29,26 +28,22 @@ class JackalControl:
         )
 
         self.obstacle_subscriber = rospy.Subscriber(
-            "/obstacle_ekf/odometry", Odometry, self.obstacle_callback
+            "/vicon/obstacle1", PoseWithCovarianceStamped, self.obstacle_callback
         )
 
-        self.control_action_publisher = rospy.Publisher(
-            "/cmd_vel", Twist, queue_size=1)
+        self.control_action_publisher = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         self.dt = dt
         self.ros_communication_thread = threading.Thread(
             target=self.ros_communication_task
         )
-
 
     def goal_callback(self, msg):
         """
         Update the latest goal.
         """
         # TODO: also extract orientation
-        goal_oritentation = utils.get_z_angle_from_quaternion(
-            msg.pose.orientation)
-
-        goal = [msg.pose.position.x, msg.pose.position.y, goal_oritentation]
+        goal_orientation = utils.get_z_angle_from_quaternion(msg.pose.orientation)
+        goal = [msg.pose.position.x, msg.pose.position.y, goal_orientation]
         self.latest_goal.set(goal)
 
     def odometry_callback(self, msg):
@@ -56,7 +51,14 @@ class JackalControl:
         self.latest_state.set(state)
 
     def obstacle_callback(self, msg):
-        obstacle = utils.vector_from_odom(msg)
+        obstacle_orientation = utils.get_z_angle_from_quaternion(
+            msg.pose.pose.orientation
+        )
+        obstacle = [
+            msg.pose.pose.position.x,
+            msg.pose.pose.position.y,
+            obstacle_orientation,
+        ]
         self.latest_obstacle.set(obstacle)
 
     def strategy_update_task(self):
@@ -72,9 +74,8 @@ class JackalControl:
             state = self.latest_state.get()
             goal = self.latest_goal.get()
             obstacle = self.latest_obstacle.get()
-            if state and goal:
-                new_strategy = motion_controller.compute_strategy(
-                    state, goal, obstacle)
+            if state and goal and obstacle:
+                new_strategy = motion_controller.compute_strategy(state, goal, obstacle)
                 self.latest_strategy.set(new_strategy)
             rate.sleep()
 
