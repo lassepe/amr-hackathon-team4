@@ -1,0 +1,6 @@
+[deps]
+Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
+JackalControl = "a6cb9126-2246-4773-a3ce-852f867faa3f"
+OhMyREPL = "5fb14364-9ced-5910-84b2-373655c76a03"
+OrderedPreferences = "f28deaa9-7646-4bae-9ba6-b7789ef42b8a"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"

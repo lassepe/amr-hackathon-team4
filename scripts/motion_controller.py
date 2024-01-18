@@ -26,12 +26,12 @@ class JackalControl:
             "/move_base_simple/goal", PoseStamped, self.goal_callback
         )
 
-        self.control_action_publisher = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
+        self.control_action_publisher = rospy.Publisher(
+            "/cmd_vel", Twist, queue_size=1)
         self.dt = dt
         self.ros_communication_thread = threading.Thread(
             target=self.ros_communication_task
         )
-        self.motion_controller = JuliaTrajectoryOptimizer()
 
     def goal_callback(self, msg):
         """
@@ -49,15 +49,17 @@ class JackalControl:
         Continuously compute the control action to be taken by the robot from the current
         state estimate.
         """
+
+        motion_controller = JuliaTrajectoryOptimizer()
+
         rate = rospy.Rate(1 / self.dt)
         while not rospy.is_shutdown():
             state = self.latest_state.get()
             goal = self.latest_goal.get()
             obstacle = [0.0, 0.0]  # TODO: set based on vicon readings, too
             if state and goal:
-                new_strategy = self.motion_controller.compute_strategy(
-                    state, goal, obstacle
-                )
+                new_strategy = motion_controller.compute_strategy(
+                    state, goal, obstacle)
                 self.latest_strategy.set(new_strategy)
             rate.sleep()
 
