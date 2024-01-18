@@ -3,7 +3,7 @@ function setup_trajectory_optimizer(;
     dynamics = UnicycleDynamics(; control_bounds = (; lb = [-4.0, -1.4], ub = [4.0, 1.4])),
     planning_horizon = 10,
 )
-    goal_dimension = 2
+    goal_dimension = 3
     obstacle_dimension = 2
     println("setting up...")
     state_dimension = state_dim(dynamics)
@@ -14,18 +14,18 @@ function setup_trajectory_optimizer(;
     unflatten_parameters = function (θ)
         θ_iter = Iterators.Stateful(θ)
         initial_state = first(θ_iter, state_dimension)
-        goal_position = first(θ_iter, 2)
-        obstacle_position = first(θ_iter, 2)
-        (; initial_state, goal_position, obstacle_position)
+        goal = first(θ_iter, goal_dimension)
+        obstacle = first(θ_iter, obstacle_dimension)
+        (; initial_state, goal, obstacle)
     end
 
-    function flatten_parameters(; initial_state, goal_position, obstacle_position)
-        vcat(initial_state, goal_position, obstacle_position)
+    function flatten_parameters(; initial_state, goal, obstacle)
+        vcat(initial_state, goal, obstacle)
     end
 
     objective = function (z, θ)
         (; xs, us) = unflatten_trajectory(z, state_dimension, control_dimension)
-        (; goal_position) = unflatten_parameters(θ)
+        (; goal) = unflatten_parameters(θ)
 
         sum(sum(u .^ 2) for u in us)
     end
@@ -71,11 +71,14 @@ function setup_trajectory_optimizer(;
         # reach the goal
         function (z, θ)
             (; xs, us) = unflatten_trajectory(z, state_dimension, control_dimension)
-            (; goal_position) = unflatten_parameters(θ)
-            goal_deviation = xs[end][1:2] .- goal_position
+            (; goal) = unflatten_parameters(θ)
+            goal_position_deviation = xs[end][1:2] .- goal[1:2]
+            goal_orientation_deviation = xs[end][4] - goal[3]
             [
-                goal_deviation .+ 0.1
-                -goal_deviation .+ 0.1
+                goal_position_deviation .+ 0.1
+                -goal_position_deviation .+ 0.1
+                goal_orientation_deviation .+ 0.01
+                -goal_orientation_deviation .+ 0.01
             ]
         end,
     ]
@@ -94,8 +97,8 @@ function setup_trajectory_optimizer(;
     (; problem, flatten_parameters, unflatten_parameters)
     solution = nothing
 
-    function trajectory_optimizer(initial_state, goal_position, obstacle_position)
-        θ = flatten_parameters(; initial_state, goal_position, obstacle_position)
+    function trajectory_optimizer(initial_state, goal, obstacle)
+        θ = flatten_parameters(; initial_state, goal, obstacle)
         solution = OrderedPreferences.solve(problem, θ; warmstart_solution = solution)
         unflatten_trajectory(solution.primals, state_dim(dynamics), control_dim(dynamics))
     end
@@ -103,7 +106,11 @@ function setup_trajectory_optimizer(;
     # trigger compilation of the full stack
     if warmup
         println("warming up...")
-        trajectory_optimizer(zeros(state_dimension), zeros(2), zeros(2))
+        trajectory_optimizer(
+            zeros(state_dimension),
+            zeros(obstacle_dimension),
+            zeros(goal_dimension),
+        )
         println("done warming up...")
     end
 

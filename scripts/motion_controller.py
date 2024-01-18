@@ -44,7 +44,11 @@ class JackalControl:
         """
         Update the latest goal.
         """
-        goal = [msg.pose.position.x, msg.pose.position.y]
+        # TODO: also extract orientation
+        goal_oritentation = utils.get_z_angle_from_quaternion(
+            msg.pose.orientation)
+
+        goal = [msg.pose.position.x, msg.pose.position.y, goal_oritentation]
         self.latest_goal.set(goal)
 
     def odometry_callback(self, msg):

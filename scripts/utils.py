@@ -53,17 +53,20 @@ def compute_angle_error(angle1, angle2):
     return delta
 
 
-def vector_from_odom(odom):
-    ## turn rate proportional to the angle error
-    ego_z_angle = tf.transformations.euler_from_quaternion(
+def get_z_angle_from_quaternion(quaternion):
+    return tf.transformations.euler_from_quaternion(
         (
-            odom.pose.pose.orientation.x,
-            odom.pose.pose.orientation.y,
-            odom.pose.pose.orientation.z,
-            odom.pose.pose.orientation.w,
+            quaternion.x,
+            quaternion.y,
+            quaternion.z,
+            quaternion.w,
         )
     )[2]
 
+
+def vector_from_odom(odom):
+    # turn rate proportional to the angle error
+    ego_z_angle = get_z_angle_from_quaternion(odom.pose.pose.orientation)
     ego_velocity = odom.twist.twist.linear.x
 
     return [
