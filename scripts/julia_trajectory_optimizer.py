@@ -1,17 +1,29 @@
-from juliacall import Main as jl
 from utils import OpenLoopStrategy
+
+import json
+from websockets.sync.client import connect
 
 
 class JuliaTrajectoryOptimizer:
-    def __init__(self):
-        self.jl = jl
-        self.jl.seval("using Revise: Revise")
-        self.jl.seval("using JackalControl: JackalControl")
-        self.julia_solver = self.jl.JackalControl.setup_trajectory_optimizer()
+    def __init__(self, server_address="ws://127.0.0.1:8081"):
+        self.websocket = connect(server_address)
 
-    def compute_strategy(self, initial_state, goal, obstacle):
-        optimized_trajectory = self.julia_solver(initial_state, goal, obstacle)
-        return self._get_strategy_from_trajectory(optimized_trajectory)
+    # make sure we close the websocket when we're done
+    def __del__(self):
+        self.websocket.close()
+
+    def compute_strategy(self, state, goal, obstacle):
+        request = json.dumps(
+            {
+                "state": state,
+                "goal": goal,
+                "obstacle": obstacle,
+            }
+        )
+        self.websocket.send(request)
+        response = self.websocket.recv()
+        trajectory = json.loads(response)
+        return self._get_strategy_from_trajectory(trajectory)
 
     def _get_strategy_from_trajectory(self, trajectory):
         """
@@ -20,10 +32,13 @@ class JuliaTrajectoryOptimizer:
         The robot expects longitudinal velocity (v) and turn rate (\omega) as inputs but the
         trajectory has states [px, py, v, \theta] and inputs [a, \omega].
         """
-        us = []
-        for i in range(1, len(trajectory.xs)):
-            velocity = trajectory.xs[i][2]
-            turn_rate = trajectory.us[i - 1][1]
-            us.append([velocity, turn_rate])
+        control_inputs = []
 
-        return OpenLoopStrategy(us)
+        traj_xs = trajectory["xs"]
+        traj_us = trajectory["us"]
+        for i in range(1, len(traj_xs)):
+            velocity = traj_xs[i][2]
+            turn_rate = traj_us[i - 1][1]
+            control_inputs.append([velocity, turn_rate])
+
+        return OpenLoopStrategy(control_inputs)

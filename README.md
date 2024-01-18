@@ -11,17 +11,33 @@ This repository contains a rough skeleton of a ROS package that you may use as a
 
 Clone this repo into your ROS workspace as `hackathon`: `git clone https://github.com/lassepe/motion-planning-hackathon hackathon`.
 
-This package has two runtime dependencies:
+This package has two runtime ROS dependencies:
 
 - <https://github.com/tud-amr/vicon_bridge>
     - Install this by cloning it into your ROS workspace
 - <https://github.com/cra-ros-pkg/robot_localization>
     - This is part of most ROS1 installations by default.
 
-Finally, don't forget to `catkin build` in your workspace have it recognize the new packages.
+Don't forget to `catkin build` in your workspace have it recognize the new packages.
 
+All ROS communication is driven from the script in `scripts/motion_controller.py`.
+To run it, install it's dependencies listed in `requirements.txt`.
+You can install these by running `pip install -r requirements.txt` (potentially in a virtual environment).
 
-## Quick Start
+Finally, to run the Julia-based controller:
+
+- make sure you have a working [Julia 1.10 installation](https://github.com/JuliaLang/juliaup).
+    - **TL:DR;** `curl -fsSL https://install.julialang.org | sh`
+
+## Quick Start: Our Code
+
+- run the ros interface to the robot `roslaunch hackathon demo.launch robot_name:=<robot_name>`
+- run a julia trajectory optimizer: `rosrun hackathon julia_server`.
+- run the motion controller: `rosrun hackathon motion_controller.py`
+
+Each process can be restarted independently since they just communicate via network.
+
+## Quick Start: Generic
 
 Each robot has a small onboard computer which runs a ROS master to aid communication between
 low-level nodes running on the robot (motor controllers, sensors, diagnostics etc.).
