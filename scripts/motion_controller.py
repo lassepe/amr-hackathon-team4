@@ -32,11 +32,15 @@ class JackalControl:
         )
 
         self.control_action_publisher = rospy.Publisher(
-            "/cmd_vel", Twist, queue_size=1)
+            "/cmd_vel", Twist, queue_size=10
+        )
         self.dt = dt
         self.ros_communication_thread = threading.Thread(
             target=self.ros_communication_task
         )
+
+        self.strategy_update_thread = threading.Thread(
+            target=self.strategy_update_task)
 
     def goal_callback(self, msg):
         """
@@ -114,7 +118,7 @@ class JackalControl:
         Advance the index into the strategy array at each step.
         """
         self.ros_communication_thread.start()
-        self.strategy_update_task()
+        self.strategy_update_thread.start()
 
 
 if __name__ == "__main__":
