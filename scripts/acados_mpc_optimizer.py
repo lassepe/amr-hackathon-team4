@@ -3,6 +3,7 @@ from casadi import SX, MX, vertcat, sin, cos
 import numpy as np
 import time
 import matplotlib.pyplot as plt
+from utils import OpenLoopStrategy
 
 def unicycle_ode_model() -> AcadosModel:
     # returns a AcadosModel object containing the symbolic representation
@@ -159,6 +160,39 @@ class MPC:
         for i in range(self.N):
             self.solver.set(i, "p", x_goal)
         self.x_goal = x_goal
+
+
+class AcadosTrajectoryOptimizer:
+    def __init__(self) -> None:
+        N = 10 # discretization steps
+        t_horizon = 5.
+        x_goal = np.array([-5., -1., 0.])
+        model = unicycle_ode_model()
+        self.mpc = MPC(model_acados=model, N=N, t_horizon=t_horizon, x_goal=x_goal)
+
+    def compute_strategy(self, state, goal=None, obstacle=None):
+        assert len(state) == 3 
+        ut, u_horizon, xt = self.mpc.get_action_trajectory(x_current=state)
+        return self._get_strategy_from_trajectory(u_horizon)
+
+    def _get_strategy_from_trajectory(self, trajectory):
+        """
+        Extract the control inputs from the optimized trajectory.
+
+        The robot expects longitudinal velocity (v) and turn rate (\omega) as inputs but the
+        trajectory has states [px, py, v, \theta] and inputs [a, \omega].
+        """
+        control_inputs = []
+        trajecotry_length = len(trajectory)
+        traj_xs = trajectory["xs"]
+        traj_us = trajectory["us"]
+
+        for i in range(1, len(traj_xs)):
+            velocity = traj_xs[i][2]
+            turn_rate = traj_us[i - 1][1]
+            control_inputs.append([velocity, turn_rate])
+
+        return OpenLoopStrategy(control_inputs)
 
 def simulate_as_fast(run_many_times=100):
     N = 10 # discretization steps
