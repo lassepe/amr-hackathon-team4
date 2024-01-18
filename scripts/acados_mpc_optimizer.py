@@ -1,7 +1,5 @@
-#!/usr/bin/env python
-
-from acados_template import AcadosSimSolver, AcadosOcpSolver, AcadosSim, AcadosOcp, AcadosModel
-from casadi import SX, vertcat, sin, cos
+from acados_template import AcadosOcpSolver, AcadosOcp, AcadosModel
+from casadi import SX, MX, vertcat, sin, cos
 import numpy as np
 import time
 import matplotlib.pyplot as plt
@@ -10,8 +8,6 @@ def unicycle_ode_model() -> AcadosModel:
     # returns a AcadosModel object containing the symbolic representation
 
     model_name = 'unicycle'
-
-    # constants
 
     # set up states & controls
     x1      = SX.sym('x1')
@@ -34,7 +30,13 @@ def unicycle_ode_model() -> AcadosModel:
     sin_theta = sin(theta)
     f_expl = vertcat(v*cos_theta, v*sin_theta, w)
 
-    # Coverting to AcadosModel
+    # parameters: end goal
+    x1_e      = SX.sym('x1_e')
+    y1_e      = SX.sym('y1_e')
+    theta_e   = SX.sym('theta_e')
+    x_goal = vertcat(x1_e, y1_e, theta_e)
+
+    # Converting to AcadosModel
     model = AcadosModel()
     model.f_impl_expr = xdot - f_expl
     model.f_expl_expr = f_expl
@@ -42,30 +44,24 @@ def unicycle_ode_model() -> AcadosModel:
     model.xdot = xdot
     model.u = u
     model.name = model_name
+    model.p = x_goal
 
     return model
 
-
 class MPC:
-    def __init__(self, model_acados, N, t_horizon, x_goal):
-        self.N = N # prediction horizon
+    def __init__(self, model_acados, N=10, t_horizon=5.0, x_goal= np.array([0., 0., 0.])):
+        self.N = N # prediction horizon discrete steps
         self.model = model_acados
         self.t_horizon = t_horizon
         self.x_goal = x_goal
 
-    @property
-    def solver(self):
-        return AcadosOcpSolver(self.ocp())
+        self.solver = self.init_solver()
 
-    def ocp(self):
+    def init_solver(self):
+
         model = self.model
-
         t_horizon = self.t_horizon
         N = self.N
-
-        # Get model
-        model_ac = model
-        model_ac.p = model.p
 
         # Dimensions: TODO: set the dimensions in the model
         nx = model.x.size()[0] # number of states
@@ -74,12 +70,16 @@ class MPC:
 
         # Create OCP object to formulate the optimization
         ocp = AcadosOcp()
-        ocp.model = model_ac
+        ocp.model = model
         ocp.dims.N = N 
         ocp.dims.nx = nx
         ocp.dims.nu = nu
         # ocp.dims.ny = ny
         ocp.solver_options.tf = t_horizon
+
+        # Add parameters to the solver
+        x_goal = self.x_goal #.reshape(-1, 1)
+        ocp.parameter_values = x_goal
 
         # Initialize cost function. info can be found here: https://github.com/acados/acados/blob/master/docs/problem_formulation/problem_formulation_ocp_mex.pdf
         # for quadratic cost example see: https://github.com/TUM-AAS/ml-casadi/blob/44ec47f0d14aa8306d0f5dc786babddfbc8964f9/examples/mpc_mlp_naive_example.py#L137
@@ -90,12 +90,13 @@ class MPC:
         Q_mat = 2*np.diag([0, 0, 0])
         R_mat = 2*np.diag([1e-2, 1e-2])
         Qe_mat = 2*np.diag([100, 100, 0])
+        self.Qe_mat = Qe_mat
         x_goal = self.x_goal.reshape(-1, 1)
 
         ocp.cost.cost_type = 'EXTERNAL'
         ocp.cost.cost_type_e = 'EXTERNAL'
         ocp.model.cost_expr_ext_cost = model.x.T @ Q_mat @ model.x + model.u.T @ R_mat @ model.u
-        ocp.model.cost_expr_ext_cost_e = (model.x - x_goal).T @ Qe_mat @ (model.x - x_goal)
+        ocp.model.cost_expr_ext_cost_e = (model.x - model.p).T @ Qe_mat @ (model.x - model.p)
 
         # Initial reference trajectory (will be overwritten)
         # ocp.cost.yref = np.zeros(1)
@@ -121,25 +122,51 @@ class MPC:
 
         # ocp.parameter_values = model.parameter_values
 
-        return ocp
+        return AcadosOcpSolver(ocp)
+    
+    def get_action(self, x_current):
+        # This ensures that the first x is the current state
+        self.solver.set(0, "lbx", x_current)
+        self.solver.set(0, "ubx", x_current)
+        self.solver.solve()
+        ut = self.solver.get(0, "u")
+        xt = self.solver.get(1, "x")
+        return ut
+    
+    def get_state_trajectory(self, x_current):
+        # This ensures that the first x is the current state
+        self.solver.set(0, "lbx", x_current)
+        self.solver.set(0, "ubx", x_current)
+        self.solver.solve()
+        x_l = np.zeros((self.N, self.model.x.size()[0]))
+        for i in range(self.N):
+            x_l[i,:] = self.solver.get(i, "x")
+        return x_l
+    
+    def get_action_trajectory(self, x_current):
+        # This ensures that the first x is the current state
+        self.solver.set(0, "lbx", x_current)
+        self.solver.set(0, "ubx", x_current)
+        self.solver.solve()
+        ut = self.solver.get(0, "u")
+        xt = self.solver.get(1, "x")
+        u_horizon = np.zeros((self.N, self.model.u.size()[0]))
+        for i in range(self.N):
+            u_horizon[i,:] = self.solver.get(i, "u")
+        return ut, u_horizon, xt
+    
+    def set_goal(self, x_goal): # TODO: make this change a parameter in the model
+        for i in range(self.N):
+            self.solver.set(i, "p", x_goal)
+        self.x_goal = x_goal
 
-    def acados_model(self, model):
-        model_ac = AcadosModel()
-        model_ac.f_impl_expr = model.xdot - model.f_expl
-        model_ac.f_expl_expr = model.f_expl
-        model_ac.x = model.x
-        model_ac.xdot = model.xdot
-        model_ac.u = model.u
-        model_ac.name = model.name
-        return model_ac
-
-def run_as_fast(run_many_times=100):
+def simulate_as_fast(run_many_times=100):
     N = 10 # discretization steps
     t_horizon = 5.
     x_goal = np.array([-5., -1., 0.])
 
     model = unicycle_ode_model()
-    solver = MPC(model_acados=model, N=N, t_horizon=t_horizon, x_goal=x_goal).solver
+    mpc = MPC(model_acados=model, N=N, t_horizon=t_horizon, x_goal=x_goal)
 
     xt = np.array([0., 0., 0.])
     x = np.zeros((model.x.size()[0], run_many_times))
@@ -151,17 +178,16 @@ def run_as_fast(run_many_times=100):
 
     for i in range(run_many_times):
         now = time.time()
-        solver.set(0, "lbx", xt)
-        solver.set(0, "ubx", xt)
-        solver.solve()
-        xt = solver.get(1, "x")
-        ut = solver.get(0, "u")
+
+        if i == 50:
+            x_goal = np.array([0., 0., 0.])
+            mpc = MPC(model_acados=model, N=N, t_horizon=t_horizon, x_goal=x_goal)
+            mpc.set_goal(x_goal)
+            print('Changed goal')
+        
+        ut, u_horizon, xt = mpc.get_action_trajectory(x_current=xt)
         x[:,i] = xt
         u[:,i] = ut
-
-        # x_l = []
-        # for i in range(N):
-        #     x_l.append(solver.get(i, "x"))
 
         elapsed = time.time() - now
         opt_times.append(elapsed)
@@ -183,4 +209,4 @@ def plot_trajectory(x, u):
     plt.show()
 
 if __name__ == '__main__':
-    run_as_fast()
+    simulate_as_fast()
