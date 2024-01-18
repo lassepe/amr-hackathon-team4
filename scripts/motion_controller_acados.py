@@ -9,7 +9,7 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import PoseStamped
 
-from julia_trajectory_optimizer import JuliaTrajectoryOptimizer
+from acados_mpc_optimizer import AcadosTrajectoryOptimizer
 
 
 class JackalControl:
@@ -41,7 +41,7 @@ class JackalControl:
         self.latest_goal.set(goal)
 
     def odometry_callback(self, msg):
-        state = utils.vector_from_odom(msg)
+        state = utils.xyTheta_vector_from_odom(msg)
         self.latest_state.set(state)
 
     def strategy_update_task(self):
@@ -50,16 +50,17 @@ class JackalControl:
         state estimate.
         """
 
-        motion_controller = JuliaTrajectoryOptimizer()
+        motion_controller = AcadosTrajectoryOptimizer()
 
         rate = rospy.Rate(1 / self.dt)
         while not rospy.is_shutdown():
             state = self.latest_state.get()
             goal = self.latest_goal.get()
             obstacle = [0.0, 0.0]  # TODO: set based on vicon readings, too
-            if state and goal:
-                new_strategy = motion_controller.compute_strategy(
-                    state, goal, obstacle)
+            print("state: ", state)
+            if state:
+                print("computing strategy")
+                new_strategy = motion_controller.compute_strategy(state, goal, obstacle)
                 self.latest_strategy.set(new_strategy)
             rate.sleep()
 

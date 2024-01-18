@@ -72,3 +72,22 @@ def vector_from_odom(odom):
         ego_velocity,
         ego_z_angle,
     ]
+
+def xyTheta_vector_from_odom(odom):
+    ## turn rate proportional to the angle error
+    ego_z_angle = tf.transformations.euler_from_quaternion(
+        (
+            odom.pose.pose.orientation.x,
+            odom.pose.pose.orientation.y,
+            odom.pose.pose.orientation.z,
+            odom.pose.pose.orientation.w,
+        )
+    )[2]
+
+    ego_velocity = odom.twist.twist.linear.x
+
+    return [
+        odom.pose.pose.position.x,
+        odom.pose.pose.position.y,
+        ego_z_angle,
+    ]

@@ -89,8 +89,8 @@ class MPC:
         # NOTE: This leads to additional (exact) hessian contributions when using GAUSS_NEWTON hessian.
 
         Q_mat = 2*np.diag([0, 0, 0])
-        R_mat = 2*np.diag([1e-2, 1e-2])
-        Qe_mat = 2*np.diag([100, 100, 0])
+        R_mat = 2*np.diag([1, 1])
+        Qe_mat = 2*np.diag([100, 100, 100])
         self.Qe_mat = Qe_mat
         x_goal = self.x_goal.reshape(-1, 1)
 
@@ -106,8 +106,8 @@ class MPC:
         ocp.constraints.x0 = np.zeros(nx)
 
         # Set constraints
-        v_forward_max = 0.5
-        v_backwards_max = 0.1
+        v_forward_max = 0.8
+        v_backwards_max = 0.8
         w_max = 1.0
         ocp.constraints.lbu = np.array([-v_backwards_max, -w_max])
         ocp.constraints.ubu = np.array([v_forward_max, w_max])
@@ -164,15 +164,20 @@ class MPC:
 
 class AcadosTrajectoryOptimizer:
     def __init__(self) -> None:
-        N = 10 # discretization steps
-        t_horizon = 5.
-        x_goal = np.array([-5., -1., 0.])
+        N = 30 # discretization steps
+        t_horizon = 3.
+        x_goal = np.array([0., 0., 0.])
         model = unicycle_ode_model()
         self.mpc = MPC(model_acados=model, N=N, t_horizon=t_horizon, x_goal=x_goal)
 
     def compute_strategy(self, state, goal=None, obstacle=None):
-        assert len(state) == 3 
+        assert len(state) == 3
+        state = np.array(state)
+        now = time.time()
         ut, u_horizon, xt = self.mpc.get_action_trajectory(x_current=state)
+        elapsed = time.time() - now
+        print(f'Iteration time: {1000*elapsed:.2f}ms')
+        print(f'Next action: {ut}')
         return self._get_strategy_from_trajectory(u_horizon)
 
     def _get_strategy_from_trajectory(self, trajectory):
@@ -184,20 +189,18 @@ class AcadosTrajectoryOptimizer:
         """
         control_inputs = []
         trajecotry_length = len(trajectory)
-        traj_xs = trajectory["xs"]
-        traj_us = trajectory["us"]
 
-        for i in range(1, len(traj_xs)):
-            velocity = traj_xs[i][2]
-            turn_rate = traj_us[i - 1][1]
+        for i in range(0, trajecotry_length):
+            velocity = trajectory[i][0]
+            turn_rate = trajectory[i][1]
             control_inputs.append([velocity, turn_rate])
 
         return OpenLoopStrategy(control_inputs)
 
 def simulate_as_fast(run_many_times=100):
-    N = 10 # discretization steps
-    t_horizon = 5.
-    x_goal = np.array([-5., -1., 0.])
+    N = 30 # discretization steps
+    t_horizon = 3.
+    x_goal = np.array([-5., -5., 0.])
 
     model = unicycle_ode_model()
     mpc = MPC(model_acados=model, N=N, t_horizon=t_horizon, x_goal=x_goal)
