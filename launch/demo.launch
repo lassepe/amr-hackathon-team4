@@ -1,6 +1,6 @@
 <launch>
   <arg name="robot_name"/>
-
+  <arg name="obstacle_name"/>
   <!-- Launch the Vicon bridge to get pose readings.
        Since there may be many robots around, we forward objects individually.
        If you want to add an additional objectd (e.g. an obstacle), you need
@@ -17,11 +17,18 @@
     <arg name="object_frequency_divider" value="[1]"/>
   </include>
 
-  <!-- Augment the pose readings with velocity estimates via an EKF -->
+  <!-- Augment the robot pose readings with velocity estimates via an EKF -->
   <node pkg="robot_localization" type="ekf_localization_node" name="robot_ekf" clear_params="true">
     <rosparam command="load" file="$(find hackathon)/config/vicon_ekf.yaml"/>
     <remap from="pose" to="/vicon/$(arg robot_name)" />
     <remap from="/odometry/filtered" to="/robot_ekf/odometry"/>
+  </node>
+
+  <!-- Augment the obstacle pose readings with velocity estimates via an EKF -->
+  <node pkg="robot_localization" type="ekf_localization_node" name="obstacle_ekf" clear_params="true">
+    <rosparam command="load" file="$(find hackathon)/config/vicon_ekf.yaml"/>
+    <remap from="pose" to="/vicon/$(arg obstacle_name)" />
+    <remap from="/odometry/filtered" to="/obstacle_ekf/odometry"/>
   </node>
 
   <!-- Basic visualization -->
@@ -31,4 +38,7 @@
     - control node for this demo
     - run more EKFs for dynamic objects, etc.
   -->
+
+
+
 </launch>
