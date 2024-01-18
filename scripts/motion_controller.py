@@ -75,7 +75,7 @@ class JackalControl:
 
         motion_controller = JuliaTrajectoryOptimizer()
 
-        rate = rospy.Rate(2 / self.dt)
+        rate = rospy.Rate(4 / self.dt)
         while not rospy.is_shutdown():
             state = self.latest_state.get()
             goal = self.latest_goal.get()

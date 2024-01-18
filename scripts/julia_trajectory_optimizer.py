@@ -37,7 +37,7 @@ class JuliaTrajectoryOptimizer:
         traj_xs = trajectory["xs"]
         traj_us = trajectory["us"]
         for i in range(1, len(traj_xs)):
-            velocity = traj_xs[i][2]
+            velocity = (traj_xs[i][2] + traj_xs[i - 1][2]) / 2
             turn_rate = traj_us[i - 1][1]
             control_inputs.append([velocity, turn_rate])
 

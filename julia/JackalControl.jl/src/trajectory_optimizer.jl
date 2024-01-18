@@ -10,7 +10,7 @@ function setup_trajectory_optimizer(;
     maximum_lateral_acceleration = 0.5
 
     maximum_velocity = 1.0
-    minimum_obstacle_distance = 1.0
+    minimum_obstacle_distance = 0.5
     goal_dimension = 3
     obstacle_dimension = 3
     println("setting up...")
