@@ -1,16 +1,17 @@
 function setup_trajectory_optimizer(;
     warmup = true,
-    dynamics = UnicycleDynamics(; control_bounds = (; lb = [-4.0, -1.4], ub = [4.0, 1.4])),
+    dt = 0.1,
+    dynamics = UnicycleDynamics(; dt, control_bounds = (; lb = [-4.0, -1.4], ub = [4.0, 1.4])),
     planning_horizon = 15,
 )
     minimum_px = -4.0
     maximum_px = 4.0
     minimum_py = -2.5
     maximum_py = 2.5
-    maximum_lateral_acceleration = 0.5
+    maximum_lateral_acceleration = 0.75
 
-    maximum_velocity = 1.0
-    minimum_obstacle_distance = 0.5
+    maximum_velocity = 1.5
+    minimum_obstacle_distance = 0.75
     goal_dimension = 3
     obstacle_dimension = 3
     println("setting up...")
@@ -35,7 +36,7 @@ function setup_trajectory_optimizer(;
         (; xs, us) = unflatten_trajectory(z, state_dimension, control_dimension)
         (; goal) = unflatten_parameters(θ)
 
-        sum(u[1] .^ 2 + u[2] .^ 2 for u in us)
+        sum(u[1] .^ 2 + 2 * u[2] .^ 2 for u in us)
     end
 
     equality_constraints = function (z, θ)
@@ -92,7 +93,9 @@ function setup_trajectory_optimizer(;
         # reach the goal position
         function (z, θ)
             (; xs) = unflatten_trajectory(z, state_dimension, control_dimension)
-            (; goal) = unflatten_parameters(θ)
+            (; goal, obstacle) = unflatten_parameters(θ)
+            # can also track the obstacle instead
+            #goal_position_deviation = xs[end][1:2] .- obstacle[1:2]
             goal_position_deviation = xs[end][1:2] .- goal[1:2]
             [
                 goal_position_deviation .+ 0.1
@@ -100,16 +103,17 @@ function setup_trajectory_optimizer(;
             ]
         end,
 
-        # reach goal orientation
-        function (z, θ)
-            (; xs) = unflatten_trajectory(z, state_dimension, control_dimension)
-            (; goal) = unflatten_parameters(θ)
-            goal_orientation_deviation = xs[end][4] - goal[3]
-            [
-                goal_orientation_deviation .+ 0.01
-                -goal_orientation_deviation .+ 0.01
-            ]
-        end,
+        ## reach goal orientation
+        # this gave rather jerky behavior; removing for now
+        #function (z, θ)
+        #    (; xs) = unflatten_trajectory(z, state_dimension, control_dimension)
+        #    (; goal) = unflatten_parameters(θ)
+        #    goal_orientation_deviation = xs[end][4] - goal[3]
+        #    [
+        #        goal_orientation_deviation .+ 0.01
+        #        -goal_orientation_deviation .+ 0.01
+        #    ]
+        #end,
     ]
 
     problem = ParametricOrderedPreferencesProblem(;
